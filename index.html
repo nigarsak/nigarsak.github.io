@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1>🧠 Dilimizin Zenginlikleri</h1>
+    <p class="text-center" style="font-size: 18px; margin-bottom: 30px;">
+        Kelime & Anlam Eşleştirme Oyunu
+    </p>
+    <p class="text-center" style="color: #666; margin-bottom: 30px;">
+        Toplam Kelime Sayısı: <strong>{{ word_count }}</strong>
+    </p>
+    
+    <div id="game-setup">
+        <h2>Oyun Bilgileri</h2>
+        
+        <div class="input-group">
+            <label for="student-name">Öğrenci Adınız:</label>
+            <input type="text" id="student-name" placeholder="Adınızı girin" required>
+        </div>
+        
+        <div class="input-group">
+            <label for="school-name">Okulunuz:</label>
+            <input type="text" id="school-name" placeholder="Okul adını girin">
+        </div>
+        
+        <div class="input-group">
+            <label for="question-count">Soru Sayısı:</label>
+            <select id="question-count">
+                <option value="5">5 Soru</option>
+                <option value="10" selected>10 Soru</option>
+                <option value="15">15 Soru</option>
+                <option value="20">20 Soru</option>
+                <option value="25">25 Soru</option>
+            </select>
+        </div>
+        
+        <div class="text-center">
+            <button class="btn btn-large" onclick="startGame()">🎮 Oyunu Başlat</button>
+        </div>
+    </div>
+    
+    <div id="game-area" style="display: none;">
+        <div id="game-header">
+            <div class="text-center">
+                <span class="score-display">Puan: <span id="score">0</span></span>
+                <span class="score-display">Soru: <span id="current-q">1</span>/<span id="total-q">10</span></span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div class="question-card">
+            <h3 id="question-word" style="text-align: center; font-size: 24px; margin-bottom: 20px;"></h3>
+            <p style="text-align: center; margin-bottom: 25px; font-size: 18px;">
+                Bu kelimenin anlamı hangisidir?
+            </p>
+            <div id="options-container"></div>
+            <div class="text-center" style="margin-top: 20px;">
+                <button class="btn" id="submit-btn" onclick="submitAnswer()" disabled>Cevapla</button>
+            </div>
+        </div>
+        
+        <div id="result-message" style="display: none; text-align: center; margin: 20px 0;"></div>
+    </div>
+    
+    <div id="game-finished" style="display: none;">
+        <h2>🏆 Oyun Bitti!</h2>
+        <div class="text-center">
+            <div class="score-display" style="font-size: 20px; margin: 20px;">
+                Final Puanınız: <span id="final-score">0</span>/<span id="final-total">0</span>
+            </div>
+            <p style="margin: 20px 0;">Süre: <span id="final-duration">0</span> saniye</p>
+            <p style="color: #48bb78; font-weight: bold;">🎉 Skorunuz liderlik tablosuna eklendi!</p>
+            <button class="btn btn-large" onclick="location.reload()">🔄 Yeni Oyun</button>
+            <a href="/leaderboard" class="btn btn-large">📊 Liderlik Tablosu</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+let selectedAnswer = null;
+let gameData = {};
+
+function startGame() {
+    const studentName = document.getElementById('student-name').value.trim();
+    const schoolName = document.getElementById('school-name').value.trim();
+    const questionCount = document.getElementById('question-count').value;
+    
+    if (!studentName) {
+        alert('Lütfen adınızı girin!');
+        return;
+    }
+    
+    fetch('/start_game', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_name: studentName,
+            school_name: schoolName,
+            question_count: questionCount
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('game-setup').style.display = 'none';
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('total-q').textContent = data.total_questions;
+            loadQuestion();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Oyun başlatılırken hata oluştu!');
+    });
+}
+
+function loadQuestion() {
+    fetch('/get_question')
+    .then(response => response.json())
+    .then(data => {
+        if (data.game_finished) {
+            showGameFinished();
+            return;
+        }
+        
+        document.getElementById('question-word').textContent = `"${data.word}"`;
+        document.getElementById('current-q').textContent = data.current;
+        document.getElementById('score').textContent = data.score;
+        
+        const progress = (data.current / data.total) * 100;
+        document.getElementById('progress').style.width = progress + '%';
+        
+        const optionsContainer = document.getElementById('options-container');
+        optionsContainer.innerHTML = '';
+        
+        const letters = ['A', 'B', 'C', 'D'];
+        data.options.forEach((option, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option';
+            optionDiv.innerHTML = `<strong>${letters[index]})</strong> ${option}`;
+            optionDiv.onclick = () => selectOption(optionDiv, option);
+            optionsContainer.appendChild(optionDiv);
+        });
+        
+        selectedAnswer = null;
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('result-message').style.display = 'none';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function selectOption(element, answer) {
+    // Önceki seçimi temizle
+    document.querySelectorAll('.option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    
+    // Yeni seçimi işaretle
+    element.classList.add('selected');
+    selectedAnswer = answer;
+    document.getElementById('submit-btn').disabled = false;
+}
+
+function submitAnswer() {
+    if (!selectedAnswer) return;
+    
+    fetch('/answer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            answer: selectedAnswer
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.getElementById('result-message');
+        resultDiv.style.display = 'block';
+        
+        if (data.correct) {
+            resultDiv.innerHTML = '<div style="color: #48bb78; font-size: 18px; font-weight: bold;">✅ Doğru!</div>';
+        } else {
+            resultDiv.innerHTML = `<div style="color: #e53e3e; font-size: 18px; font-weight: bold;">❌ Yanlış!</div>
+                                  <div style="margin-top: 10px;">Doğru cevap: <strong>${data.correct_answer}</strong></div>`;
+        }
+        
+        document.getElementById('score').textContent = data.score;
+        
+        if (data.game_finished) {
+            setTimeout(() => {
+                showGameFinished(data);
+            }, 2000);
+        } else {
+            setTimeout(() => {
+                loadQuestion();
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function showGameFinished(data) {
+    document.getElementById('game-area').style.display = 'none';
+    document.getElementById('game-finished').style.display = 'block';
+    
+    if (data) {
+        document.getElementById('final-score').textContent = data.final_score;
+        document.getElementById('final-total').textContent = data.total_questions;
+        document.getElementById('final-duration').textContent = data.duration;
+    }
+}
+{% endblock %}

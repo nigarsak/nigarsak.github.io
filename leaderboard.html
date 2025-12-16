@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Liderlik Tablosu - Dilimizin Zenginlikleri{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>📊 Liderlik Tablosu</h1>
+    
+    {% if leaderboard %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+                <tr style="background: linear-gradient(45deg, #667eea, #764ba2); color: white;">
+                    <th style="padding: 15px; text-align: left; border-radius: 8px 0 0 0;">#</th>
+                    <th style="padding: 15px; text-align: left;">Öğrenci</th>
+                    <th style="padding: 15px; text-align: center;">Puan</th>
+                    <th style="padding: 15px; text-align: center;">Başarı %</th>
+                    <th style="padding: 15px; text-align: center;">Süre</th>
+                    <th style="padding: 15px; text-align: center; border-radius: 0 8px 0 0;">Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in leaderboard %}
+                <tr style="border-bottom: 1px solid #e2e8f0; {% if loop.index <= 3 %}background: linear-gradient(45deg, #ffd89b 0%, #19547b 100%); color: white;{% endif %}">
+                    <td style="padding: 12px; font-weight: bold;">
+                        {% if loop.index == 1 %}🥇
+                        {% elif loop.index == 2 %}🥈
+                        {% elif loop.index == 3 %}🥉
+                        {% else %}{{ loop.index }}
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px; font-weight: bold;">{{ entry.name }}</td>
+                    <td style="padding: 12px; text-align: center;">{{ entry.score }}/{{ entry.total }}</td>
+                    <td style="padding: 12px; text-align: center;">
+                        {% set percentage = (entry.score / entry.total * 100) | round(1) %}
+                        {{ percentage }}%
+                    </td>
+                    <td style="padding: 12px; text-align: center;">{{ entry.duration }}</td>
+                    <td style="padding: 12px; text-align: center; font-size: 12px;">{{ entry.date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center" style="margin: 40px 0;">
+        <p style="font-size: 18px; color: #666;">Henüz hiç oyun oynanmamış.</p>
+        <p style="margin: 20px 0;">İlk skor sahibi olmak için oyuna başlayın!</p>
+        <a href="/" class="btn btn-large">🎮 Oyuna Başla</a>
+    </div>
+    {% endif %}
+    
+    <div class="text-center" style="margin-top: 30px;">
+        <a href="/" class="btn">🏠 Ana Sayfaya Dön</a>
+    </div>
+</div>
+
+<style>
+    table {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    tr:hover {
+        background: #f7fafc !important;
+    }
+    
+    @media (max-width: 768px) {
+        table {
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 8px !important;
+        }
+    }
+</style>
+{% endblock %}
